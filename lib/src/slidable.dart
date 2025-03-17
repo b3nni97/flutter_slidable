@@ -28,6 +28,7 @@ class Slidable extends StatefulWidget {
     this.direction = Axis.horizontal,
     this.dragStartBehavior = DragStartBehavior.down,
     this.useTextDirection = true,
+    this.enableRightToLeftRestriction = false,
     required this.child,
   }) : super(key: key);
 
@@ -99,6 +100,12 @@ class Slidable extends StatefulWidget {
   ///
   ///  * [DragGestureRecognizer.dragStartBehavior], which gives an example for the different behaviors.
   final DragStartBehavior dragStartBehavior;
+
+  /// Wether or not the Gesture Detector will only accept right to left
+  /// gestures. This will allow parent Gesture Detectors to accept the
+  /// Horizontal Gestures, which would be otherwise blocked by this detector.
+  /// This will only work for Axis.horizontal.
+  final bool enableRightToLeftRestriction;
 
   /// The widget below this widget in the tree.
   ///
@@ -274,6 +281,7 @@ class _SlidableState extends State<Slidable>
       controller: controller,
       direction: widget.direction,
       dragStartBehavior: widget.dragStartBehavior,
+      enableRightToLeftRestriction: widget.enableRightToLeftRestriction,
       child: SlidableNotificationSender(
         tag: widget.groupTag,
         controller: controller,

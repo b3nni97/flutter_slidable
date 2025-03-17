@@ -14,12 +14,19 @@ class SlidableGestureDetector extends StatefulWidget {
     required this.direction,
     required this.child,
     this.dragStartBehavior = DragStartBehavior.start,
+    this.enableRightToLeftRestriction = false,
   }) : super(key: key);
 
   final SlidableController controller;
   final Widget child;
   final Axis direction;
   final bool enabled;
+
+  /// Wether or not the Gesture Detector will only accept right to left
+  /// gestures. This will allow parent Gesture Detectors to accept the
+  /// Horizontal Gestures, which would be otherwise blocked by this detector.
+  /// This will only work for Axis.horizontal.
+  final bool enableRightToLeftRestriction;
 
   /// Determines the way that drag start behavior is handled.
   ///
@@ -56,6 +63,29 @@ class _SlidableGestureDetectorState extends State<SlidableGestureDetector> {
   Widget build(BuildContext context) {
     final canDragHorizontally = directionIsXAxis && widget.enabled;
     final canDragVertically = !directionIsXAxis && widget.enabled;
+
+    if (canDragHorizontally && widget.enableRightToLeftRestriction) {
+      return RawGestureDetector(
+        gestures: {
+          OnlyRightToLeftSlidableDragRecognizer:
+              GestureRecognizerFactoryWithHandlers<
+                  OnlyRightToLeftSlidableDragRecognizer>(
+            () => OnlyRightToLeftSlidableDragRecognizer(
+                controller: widget.controller),
+            (OnlyRightToLeftSlidableDragRecognizer instance) {
+              instance
+                ..onStart = handleDragStart
+                ..onUpdate = handleDragUpdate
+                ..onEnd = handleDragEnd
+                ..dragStartBehavior = widget.dragStartBehavior;
+            },
+          )
+        },
+        behavior: HitTestBehavior.opaque,
+        child: widget.child,
+      );
+    }
+
     return GestureDetector(
       onHorizontalDragStart: canDragHorizontally ? handleDragStart : null,
       onHorizontalDragUpdate: canDragHorizontally ? handleDragUpdate : null,
@@ -100,5 +130,54 @@ class _SlidableGestureDetectorState extends State<SlidableGestureDetector> {
       details.primaryVelocity,
       gestureDirection,
     );
+  }
+}
+
+/// A specialized [HorizontalDragGestureRecognizer] that only accepts
+/// right-to-left drags unless the Slidable is already open.
+///
+/// - If the Slidable is closed (controller.ratio == 0.0), any horizontal
+///   movement to the right (dx > 0) will be rejected immediately, so that
+///   parent widgets (e.g., a TabView) can handle that gesture.
+/// - If the Slidable is partially or fully open (controller.ratio != 0.0),
+///   this recognizer does not reject rightward movement, allowing the user
+///   to swipe back to close the Slidable.
+class OnlyRightToLeftSlidableDragRecognizer
+    extends HorizontalDragGestureRecognizer {
+  OnlyRightToLeftSlidableDragRecognizer({
+    required this.controller,
+    Object? debugOwner,
+  }) : super(debugOwner: debugOwner);
+
+  final SlidableController controller;
+
+  bool _hasDirectionBeenDecided = false;
+
+  @override
+  void addPointer(PointerDownEvent event) {
+    _hasDirectionBeenDecided = false;
+    super.addPointer(event);
+  }
+
+  @override
+  void handleEvent(PointerEvent event) {
+    if (!_hasDirectionBeenDecided && event is PointerMoveEvent) {
+      final bool isSlidableClosed = (controller.ratio == 0.0);
+      final double dx = event.delta.dx;
+
+      // If the Slidable is closed and the user swipes to the right (dx > 0),
+      // reject immediately so that parent widgets can detect the gesture.
+      if (isSlidableClosed && dx > 0) {
+        stopTrackingPointer(event.pointer);
+        resolve(GestureDisposition.rejected);
+        return;
+      }
+
+      // Otherwise, let the built-in logic handle acceptance.
+      _hasDirectionBeenDecided = true;
+    }
+
+    // Pass all subsequent events to the base class (horizontal drag logic).
+    super.handleEvent(event);
   }
 }

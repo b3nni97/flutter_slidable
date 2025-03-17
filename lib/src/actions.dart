@@ -104,6 +104,7 @@ class CustomSlidableAction extends StatelessWidget {
             shape: RoundedRectangleBorder(
               borderRadius: borderRadius,
             ),
+            splashFactory: NoSplash.splashFactory,
             side: BorderSide.none,
           ),
           child: child,
