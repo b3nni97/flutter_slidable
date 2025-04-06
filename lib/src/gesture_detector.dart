@@ -115,7 +115,17 @@ class _SlidableGestureDetectorState extends State<SlidableGestureDetector> {
 
   void handleDragUpdate(DragUpdateDetails details) {
     final delta = details.primaryDelta!;
+
+    if (widget.controller.ratio == 0.0 && delta >= 0) {
+      return;
+    }
+
     dragExtent += delta;
+
+    if (dragExtent >= 0) {
+      dragExtent = 0;
+    }
+
     lastPosition = details.localPosition;
     widget.controller.ratio = dragExtent / overallDragAxisExtent;
   }
@@ -123,6 +133,11 @@ class _SlidableGestureDetectorState extends State<SlidableGestureDetector> {
   void handleDragEnd(DragEndDetails details) {
     final delta = lastPosition - startPosition;
     final primaryDelta = directionIsXAxis ? delta.dx : delta.dy;
+
+    if (widget.controller.ratio == 0.0 && primaryDelta >= 0) {
+      return;
+    }
+
     final gestureDirection =
         primaryDelta >= 0 ? GestureDirection.opening : GestureDirection.closing;
 
